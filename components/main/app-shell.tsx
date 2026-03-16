@@ -12,7 +12,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import type { ShouldStartLoadRequest, WebViewNavigation } from 'react-native-webview/lib/WebViewTypes';
+import type {
+  ShouldStartLoadRequest,
+  WebViewNavigation,
+  WebViewMessageEvent,
+  WebViewProgressEvent,
+} from 'react-native-webview/lib/WebViewTypes';
 
 import { APP_BASE_URL, APP_COLORS, DEFAULT_LK_PATH, NATIVE_MENU_ITEMS } from '@/constants/app-config';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
@@ -30,15 +35,16 @@ function AppShellComponent({ accessToken, initialPath = DEFAULT_LK_PATH, onLogou
   const isLoggingOutRef = useRef(false);
   const authRedirectCountRef = useRef(0);
   const authRedirectWindowStartRef = useRef(0);
+  const loaderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [path, setPath] = useState<string>(normalizePath(initialPath));
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
 
   const injectedAuthScript = useMemo(() => buildWebViewAuthInjection(accessToken), [accessToken]);
   const selectedMenuKey = getMenuKeyForPath(path);
   const currentUrl = toAbsoluteUrl(path);
 
-  const extractStableRoutePath = (url: string): string | null => {
+  const extractNavigablePath = (url: string): string | null => {
     try {
       const parsedUrl = new URL(url, APP_BASE_URL);
       const { pathname, searchParams } = parsedUrl;
@@ -47,14 +53,11 @@ function AppShellComponent({ accessToken, initialPath = DEFAULT_LK_PATH, onLogou
         return null;
       }
 
-      if (pathname === '/traineronline/lk/report') {
-        const type = searchParams.get('type');
-        if (type) {
-          return `${pathname}?type=${type}`;
-        }
-      }
+      const sanitizedSearchParams = new URLSearchParams(searchParams);
+      sanitizedSearchParams.delete('_rsc');
 
-      return pathname;
+      const queryString = sanitizedSearchParams.toString();
+      return queryString ? `${pathname}?${queryString}` : pathname;
     } catch {
       // Ignore URL parsing errors.
     }
@@ -131,6 +134,14 @@ function AppShellComponent({ accessToken, initialPath = DEFAULT_LK_PATH, onLogou
     return () => subscription.remove();
   }, [canGoBack]);
 
+  useEffect(() => {
+    return () => {
+      if (loaderTimerRef.current) {
+        clearTimeout(loaderTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleShouldStartLoad = (request: ShouldStartLoadRequest): boolean => {
     const nextUrl = request.url;
 
@@ -197,9 +208,47 @@ function AppShellComponent({ accessToken, initialPath = DEFAULT_LK_PATH, onLogou
     authRedirectCountRef.current = 0;
     authRedirectWindowStartRef.current = 0;
 
-    const stablePath = extractStableRoutePath(nextUrl);
-    if (stablePath && stablePath !== path) {
-      setPath(stablePath);
+    const navigablePath = extractNavigablePath(nextUrl);
+    if (navigablePath && navigablePath !== path) {
+      setPath(navigablePath);
+    }
+  };
+
+  const handleLoadStart = (): void => {
+    if (loaderTimerRef.current) {
+      clearTimeout(loaderTimerRef.current);
+    }
+
+    loaderTimerRef.current = setTimeout(() => {
+      setIsLoading(true);
+      loaderTimerRef.current = null;
+    }, 300);
+  };
+
+  const handleLoadEnd = (): void => {
+    if (loaderTimerRef.current) {
+      clearTimeout(loaderTimerRef.current);
+      loaderTimerRef.current = null;
+    }
+
+    setIsLoading(false);
+  };
+
+  const handleLoadProgress = (event: WebViewProgressEvent): void => {
+    if (event.nativeEvent.progress >= 0.95) {
+      handleLoadEnd();
+    }
+  };
+
+  const handleMessage = (event: WebViewMessageEvent): void => {
+    try {
+      const payload = JSON.parse(event.nativeEvent.data) as { type?: string };
+      if (payload.type === 'tnote-logout' && !isLoggingOutRef.current) {
+        isLoggingOutRef.current = true;
+        onLogout();
+      }
+    } catch {
+      // Ignore messages that do not belong to the app shell bridge.
     }
   };
 
@@ -210,8 +259,11 @@ function AppShellComponent({ accessToken, initialPath = DEFAULT_LK_PATH, onLogou
           <WebView
             ref={webViewRef}
             source={{ uri: currentUrl }}
-            onLoadStart={() => setIsLoading(true)}
-            onLoadEnd={() => setIsLoading(false)}
+            userAgent="Mozilla/5.0 (Mobile; TNoteAppWebView/1.0)"
+            onLoadStart={handleLoadStart}
+            onLoadEnd={handleLoadEnd}
+            onLoadProgress={handleLoadProgress}
+            onMessage={handleMessage}
             onNavigationStateChange={handleNavigationStateChange}
             onShouldStartLoadWithRequest={handleShouldStartLoad}
             injectedJavaScriptBeforeContentLoaded={injectedAuthScript}

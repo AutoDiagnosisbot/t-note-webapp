@@ -1,4 +1,14 @@
-export const APP_BASE_URL = 'https://tro.posle.school';
+import Constants from 'expo-constants';
+
+type ExtraConfig = {
+  appBaseUrl?: string;
+  appVariant?: 'dev' | 'prod';
+};
+
+const extra = (Constants.expoConfig?.extra ?? {}) as ExtraConfig;
+
+export const APP_VARIANT = extra.appVariant === 'prod' ? 'prod' : 'dev';
+export const APP_BASE_URL = extra.appBaseUrl ?? 'https://tro.posle.school';
 
 export const APP_COLORS = {
   primary: '#ED534F',
@@ -62,4 +72,3 @@ export const NATIVE_MENU_ITEMS: NativeMenuItem[] = [
     icon: 'menu',
   },
 ];
-

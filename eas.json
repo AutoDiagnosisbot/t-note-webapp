@@ -1,0 +1,41 @@
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "dev"
+      }
+    },
+    "dev": {
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "dev"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "prod-apk": {
+      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "prod"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "prod": {
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "prod"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "cli": {
+    "appVersionSource": "remote"
+  }
+}

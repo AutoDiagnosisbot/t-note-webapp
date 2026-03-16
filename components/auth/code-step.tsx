@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { APP_COLORS } from '@/constants/app-config';
 import { formatPhoneForInput } from '@/utils/phone';
@@ -39,7 +39,19 @@ function CodeStepComponent({
 
   const canResend = resendInSeconds === 0 && !isResending;
   const canSubmit = code.length === 6 && !isSubmitting;
-  const focusInput = useCallback(() => inputRef.current?.focus(), []);
+  const focusInput = useCallback(() => {
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+
+    Keyboard.dismiss();
+    input.blur();
+
+    setTimeout(() => {
+      input.focus();
+    }, 50);
+  }, []);
 
   useEffect(() => {
     focusTimerRef.current = setTimeout(() => {
@@ -79,6 +91,7 @@ function CodeStepComponent({
           maxLength={6}
           autoFocus
           blurOnSubmit={false}
+          showSoftInputOnFocus
           onSubmitEditing={onSubmit}
           style={styles.hiddenInput}
         />
