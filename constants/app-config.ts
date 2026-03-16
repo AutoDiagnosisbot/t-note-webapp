@@ -29,6 +29,10 @@ export const AUTH_ENDPOINTS = {
   authInfo: '/server/tro-auth/authInfo',
 } as const;
 
+export const APP_UPDATE_ENDPOINT = '/server/tro/app-version';
+export const APP_UPDATE_CHANNEL = 'rustore';
+export const APP_UPDATE_PLATFORM = 'android';
+
 export type MenuItemKey = 'sportsmens' | 'visits' | 'payments' | 'documents' | 'more';
 
 export type NativeMenuItem = {

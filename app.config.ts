@@ -39,7 +39,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/images/icon-dark.png',
       monochromeImage: './assets/images/icon-monochrome.png',
     },
-    edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
   },
   web: {

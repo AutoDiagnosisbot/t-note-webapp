@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { APP_COLORS } from '@/constants/app-config';
 import { formatPhoneForInput } from '@/utils/phone';
@@ -45,12 +45,9 @@ function CodeStepComponent({
       return;
     }
 
-    Keyboard.dismiss();
-    input.blur();
-
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       input.focus();
-    }, 50);
+    });
   }, []);
 
   useEffect(() => {
@@ -88,12 +85,16 @@ function CodeStepComponent({
           keyboardType="number-pad"
           textContentType="oneTimeCode"
           autoComplete="sms-otp"
+          importantForAutofill="yes"
           maxLength={6}
           autoFocus
           blurOnSubmit={false}
           showSoftInputOnFocus
+          caretHidden
+          selectionColor="transparent"
+          underlineColorAndroid="transparent"
           onSubmitEditing={onSubmit}
-          style={styles.hiddenInput}
+          style={styles.overlayInput}
         />
 
         <Pressable style={styles.codeRow} onPress={focusInput}>
@@ -175,11 +176,15 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     marginBottom: 24,
   },
-  hiddenInput: {
+  overlayInput: {
     position: 'absolute',
-    width: 1,
-    height: 1,
-    opacity: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    opacity: 0.02,
+    color: 'transparent',
+    backgroundColor: 'transparent',
   },
   codeRowWrap: {
     position: 'relative',

@@ -158,3 +158,11 @@ If behavior changes unexpectedly, inspect first:
 - Frequent `/traineronline/auth` redirects from site side can look like UI flicker in WebView.
 - There are encoding artifacts in some Russian strings from prior edits; keep source files UTF-8 and verify visible text on device.
 
+## 11. Planned update strategy
+
+- Update tracking is deferred for now and is not implemented in the current runtime.
+- The chosen future approach is:
+  - backend-driven version policy checks inside the app,
+  - push or remote-triggered update prompts that tell the app to re-check update state.
+- Primary Android publication target is `RuStore`.
+- Do not plan around Google Play In-App Updates as the primary mechanism for this project.
