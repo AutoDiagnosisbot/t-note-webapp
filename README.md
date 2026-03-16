@@ -42,9 +42,31 @@ To learn more about developing your project with Expo, look at the following res
 - [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
 - [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
+## Android OTP autofill
+
+The Android auth flow uses SMS Retriever API and does not request `READ_SMS` or `RECEIVE_SMS`.
+
+For autofill to work, the verification SMS must include:
+
+- a 6-digit code;
+- the app hash on a separate line at the end of the message.
+
+Example:
+
+```text
+<#> Your T-Note code is 123456
+FA+9qCX9VSu
+```
+
 ## Join the community
 
 Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## сборка проекта
+
+npx expo prebuild --platform android
+cd android
+.\gradlew.bat assembleRelease

@@ -10,7 +10,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import type {
   ShouldStartLoadRequest,
@@ -21,6 +20,7 @@ import type {
 
 import { APP_BASE_URL, APP_COLORS, DEFAULT_LK_PATH, NATIVE_MENU_ITEMS } from '@/constants/app-config';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
+import { reportEvent, reportScreen } from '@/services/analytics';
 import { buildWebViewAuthInjection } from '@/services/session';
 import { getMenuKeyForPath, isAppHost, normalizePath, toAbsoluteUrl } from '@/utils/web-routes';
 
@@ -112,10 +112,22 @@ function AppShellComponent({ accessToken, initialPath = DEFAULT_LK_PATH, onLogou
   usePushNotifications({
     onOpenPath: (nextPath) => {
       if (nextPath.startsWith('/traineronline/lk/')) {
+        reportEvent('push_open_path', { path: nextPath });
         setPath(nextPath);
       }
     },
   });
+
+  useEffect(() => {
+    reportScreen('webview_route', {
+      path,
+      menu_key: selectedMenuKey,
+    });
+    reportEvent('webview_route_view', {
+      path,
+      menu_key: selectedMenuKey,
+    });
+  }, [path, selectedMenuKey]);
 
   useEffect(() => {
     if (Platform.OS !== 'android') {
@@ -253,67 +265,61 @@ function AppShellComponent({ accessToken, initialPath = DEFAULT_LK_PATH, onLogou
   };
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.webViewContainer}>
-          <WebView
-            ref={webViewRef}
-            source={{ uri: currentUrl }}
-            userAgent="Mozilla/5.0 (Mobile; TNoteAppWebView/1.0)"
-            onLoadStart={handleLoadStart}
-            onLoadEnd={handleLoadEnd}
-            onLoadProgress={handleLoadProgress}
-            onMessage={handleMessage}
-            onNavigationStateChange={handleNavigationStateChange}
-            onShouldStartLoadWithRequest={handleShouldStartLoad}
-            injectedJavaScriptBeforeContentLoaded={injectedAuthScript}
-            sharedCookiesEnabled
-            thirdPartyCookiesEnabled
-            javaScriptEnabled
-            domStorageEnabled
-            style={styles.webView}
-          />
-          {isLoading && (
-            <View style={styles.loaderOverlay}>
-              <ActivityIndicator size="large" color={APP_COLORS.primary} />
-            </View>
-          )}
-        </View>
-
-        <View style={styles.menuContainer}>
-          {NATIVE_MENU_ITEMS.map((item) => {
-            const isActive = item.key === selectedMenuKey;
-            const color = isActive ? APP_COLORS.primary : APP_COLORS.textSecondary;
-
-            return (
-              <Pressable
-                key={item.key}
-                onPress={() => setPath(item.path)}
-                style={styles.menuItem}
-                hitSlop={10}>
-                <Ionicons
-                  name={`${item.icon}-outline`}
-                  color={color}
-                  size={22}
-                  style={styles.menuIcon}
-                />
-                <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>{item.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+    <View style={styles.container}>
+      <View style={styles.webViewContainer}>
+        <WebView
+          ref={webViewRef}
+          source={{ uri: currentUrl }}
+          userAgent="Mozilla/5.0 (Mobile; TNoteAppWebView/1.0)"
+          onLoadStart={handleLoadStart}
+          onLoadEnd={handleLoadEnd}
+          onLoadProgress={handleLoadProgress}
+          onMessage={handleMessage}
+          onNavigationStateChange={handleNavigationStateChange}
+          onShouldStartLoadWithRequest={handleShouldStartLoad}
+          injectedJavaScriptBeforeContentLoaded={injectedAuthScript}
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled
+          javaScriptEnabled
+          domStorageEnabled
+          style={styles.webView}
+        />
+        {isLoading && (
+          <View style={styles.loaderOverlay}>
+            <ActivityIndicator size="large" color={APP_COLORS.primary} />
+          </View>
+        )}
       </View>
-    </SafeAreaView>
+
+      <View style={styles.menuContainer}>
+        {NATIVE_MENU_ITEMS.map((item) => {
+          const isActive = item.key === selectedMenuKey;
+          const color = isActive ? APP_COLORS.primary : APP_COLORS.textSecondary;
+
+          return (
+            <Pressable
+              key={item.key}
+              onPress={() => setPath(item.path)}
+              style={styles.menuItem}
+              hitSlop={10}>
+              <Ionicons
+                name={`${item.icon}-outline`}
+                color={color}
+                size={22}
+                style={styles.menuIcon}
+              />
+              <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>{item.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
 export const AppShell = memo(AppShellComponent);
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: APP_COLORS.background,
-  },
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
