@@ -1,6 +1,16 @@
+import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
+import { TNoteFullLogo } from '@/components/branding/tnote-full-logo';
 import { APP_COLORS } from '@/constants/app-config';
 import { formatPhoneForInput } from '@/utils/phone';
 
@@ -37,8 +47,10 @@ function CodeStepComponent({
     return Array.from({ length: 6 }, (_, index) => normalized[index] ?? '');
   }, [code]);
 
-  const canResend = resendInSeconds === 0 && !isResending;
+  const hasError = Boolean(errorMessage);
   const canSubmit = code.length === 6 && !isSubmitting;
+  const canResend = resendInSeconds === 0 && !isResending;
+
   const focusInput = useCallback(() => {
     const input = inputRef.current;
     if (!input) {
@@ -62,119 +74,179 @@ function CodeStepComponent({
     };
   }, [focusInput]);
 
+  const showSubmitButton = canSubmit && !hasError;
+  const showResendButton = canResend && (!showSubmitButton || hasError);
+  const showResendCountdown = !showSubmitButton && !showResendButton;
+
   return (
-    <Pressable style={styles.container} onPress={focusInput}>
-      {!!errorMessage && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{errorMessage}</Text>
+    <KeyboardAvoidingView
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Pressable style={styles.container} onPress={focusInput}>
+        <View style={styles.contentStack}>
+          <View style={styles.heroBlock}>
+            <TNoteFullLogo width={204} height={78} />
+          </View>
+
+          <View style={styles.formBlock}>
+            <View style={styles.headingBlock}>
+              <Text style={styles.title}>Введите код из СМС</Text>
+
+              <View style={styles.phoneBlock}>
+                <Text style={styles.subtitle}>Отправили код на {formattedPhone}</Text>
+
+                <Pressable onPress={onBack}>
+                  <Text style={styles.changePhone}>Изменить телефон</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.codeSection}>
+              <View style={styles.codeRowWrap}>
+                <TextInput
+                  ref={inputRef}
+                  value={code}
+                  onChangeText={onCodeChange}
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  autoComplete="sms-otp"
+                  importantForAutofill="yes"
+                  maxLength={6}
+                  autoFocus
+                  blurOnSubmit={false}
+                  showSoftInputOnFocus
+                  caretHidden
+                  selectionColor="transparent"
+                  underlineColorAndroid="transparent"
+                  onSubmitEditing={onSubmit}
+                  style={styles.overlayInput}
+                />
+
+                <Pressable style={styles.codeRow} onPress={focusInput}>
+                  {codeChars.map((char, index) => {
+                    const isFocused = index === code.length && code.length < 6 && !hasError;
+
+                    return (
+                      <Pressable
+                        key={index}
+                        style={[
+                          styles.codeCell,
+                          hasError && styles.codeCellError,
+                          isFocused && styles.codeCellFocused,
+                        ]}
+                        onPress={focusInput}>
+                        <Text style={styles.codeCellText}>{char}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </Pressable>
+              </View>
+
+              {hasError ? (
+                <View style={styles.errorHint}>
+                  <Ionicons name="alert-circle" size={20} color="#C62828" />
+                  <Text style={styles.errorHintText}>{errorMessage}</Text>
+                </View>
+              ) : null}
+
+              {showSubmitButton ? (
+                <Pressable style={styles.submitButton} onPress={onSubmit} disabled={!canSubmit}>
+                  <Text style={styles.submitButtonText}>
+                    {isSubmitting ? 'Подтверждаем...' : 'Подтвердить'}
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              {showResendButton ? (
+                <Pressable
+                  style={[styles.resendButton, isResending && styles.resendButtonDisabled]}
+                  onPress={onResend}
+                  disabled={!canResend}>
+                  <Text
+                    style={[styles.resendButtonText, isResending && styles.resendButtonTextDisabled]}>
+                    {isResending ? 'Отправка...' : 'Отправить код повторно'}
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              {showResendCountdown ? (
+                <View style={styles.countdownBlock}>
+                  <Text style={styles.countdownLabel}>Отправить код повторно</Text>
+                  <Text style={styles.countdownTimer}>
+                    00:{String(resendInSeconds).padStart(2, '0')}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
         </View>
-      )}
-
-      <Text style={styles.title}>Введите код подтверждения</Text>
-      <Text style={styles.subtitle}>Отправили код на {formattedPhone}</Text>
-
-      <Pressable onPress={onBack}>
-        <Text style={styles.changePhone}>Изменить телефон</Text>
       </Pressable>
-
-      <View style={styles.codeRowWrap}>
-        <TextInput
-          ref={inputRef}
-          value={code}
-          onChangeText={onCodeChange}
-          keyboardType="number-pad"
-          textContentType="oneTimeCode"
-          autoComplete="sms-otp"
-          importantForAutofill="yes"
-          maxLength={6}
-          autoFocus
-          blurOnSubmit={false}
-          showSoftInputOnFocus
-          caretHidden
-          selectionColor="transparent"
-          underlineColorAndroid="transparent"
-          onSubmitEditing={onSubmit}
-          style={styles.overlayInput}
-        />
-
-        <Pressable style={styles.codeRow} onPress={focusInput}>
-          {codeChars.map((char, index) => {
-            const isFocused = index === code.length && code.length < 6;
-
-            return (
-              <Pressable
-                key={index}
-                style={[styles.codeCell, isFocused && styles.codeCellFocused]}
-                onPress={focusInput}>
-                <Text style={styles.codeCellText}>{char}</Text>
-              </Pressable>
-            );
-          })}
-        </Pressable>
-      </View>
-
-      <Pressable
-        style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
-        onPress={onSubmit}
-        disabled={!canSubmit}>
-        <Text style={[styles.submitButtonText, !canSubmit && styles.submitButtonTextDisabled]}>
-          {isSubmitting ? 'Проверяем...' : 'Подтвердить код'}
-        </Text>
-      </Pressable>
-
-      <Pressable onPress={onResend} disabled={!canResend}>
-        <Text style={[styles.resendText, !canResend && styles.resendTextDisabled]}>
-          {isResending
-            ? 'Отправка...'
-            : canResend
-              ? 'Отправить код повторно'
-              : `Отправить код повторно ${`00:${String(resendInSeconds).padStart(2, '0')}`}`}
-        </Text>
-      </Pressable>
-    </Pressable>
+    </KeyboardAvoidingView>
   );
 }
 
 export const CodeStep = memo(CodeStepComponent);
 
 const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    backgroundColor: APP_COLORS.surface,
+  },
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.surface,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 14,
+    paddingTop: 28,
+    paddingBottom: 24,
   },
-  errorBanner: {
-    marginBottom: 24,
-    borderRadius: 12,
-    backgroundColor: APP_COLORS.errorBg,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  contentStack: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 32,
   },
-  errorText: {
-    color: '#7B3130',
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '500',
+  heroBlock: {
+    width: '100%',
+    alignItems: 'center',
+    paddingTop: 28,
+  },
+  formBlock: {
+    width: '100%',
+    gap: 24,
+    alignItems: 'center',
+  },
+  headingBlock: {
+    width: '100%',
+    gap: 24,
+    alignItems: 'center',
   },
   title: {
+    width: '100%',
     color: APP_COLORS.textPrimary,
-    fontSize: 44,
-    lineHeight: 50,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontSize: 24,
+    lineHeight: 36,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  phoneBlock: {
+    width: '100%',
+    gap: 2,
   },
   subtitle: {
     color: APP_COLORS.textSecondary,
-    fontSize: 26,
-    lineHeight: 32,
-    marginBottom: 8,
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: '500',
   },
   changePhone: {
     color: APP_COLORS.primary,
-    fontSize: 28,
-    lineHeight: 34,
-    marginBottom: 24,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '500',
+  },
+  codeSection: {
+    width: '100%',
+    gap: 24,
+    alignItems: 'center',
   },
   overlayInput: {
     position: 'absolute',
@@ -188,58 +260,104 @@ const styles = StyleSheet.create({
   },
   codeRowWrap: {
     position: 'relative',
-    marginBottom: 24,
+    width: '100%',
   },
   codeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 8,
   },
   codeCell: {
-    width: 48,
-    height: 60,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: APP_COLORS.border,
+    flex: 1,
+    height: 50,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EBEBEB',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: APP_COLORS.surface,
   },
   codeCellFocused: {
     borderColor: APP_COLORS.primary,
   },
+  codeCellError: {
+    borderWidth: 2,
+    borderColor: '#B8322E',
+  },
   codeCellText: {
     color: APP_COLORS.textPrimary,
     fontSize: 28,
-    lineHeight: 32,
+    lineHeight: 36,
+    fontWeight: '500',
+  },
+  errorHint: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  errorHintText: {
+    flex: 1,
+    color: '#C62828',
+    fontSize: 16,
+    lineHeight: 24,
     fontWeight: '500',
   },
   submitButton: {
-    height: 56,
+    width: '100%',
+    minHeight: 48,
     borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: APP_COLORS.primary,
+    backgroundColor: APP_COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  submitButtonDisabled: {
-    borderColor: APP_COLORS.muted,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
   submitButtonText: {
-    color: APP_COLORS.primary,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '500',
   },
-  submitButtonTextDisabled: {
-    color: APP_COLORS.muted,
+  resendButton: {
+    width: '100%',
+    minHeight: 48,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#FDB4B2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
-  resendText: {
+  resendButtonDisabled: {
+    borderColor: '#F3D5D4',
+  },
+  resendButtonText: {
     color: APP_COLORS.primary,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '500',
+  },
+  resendButtonTextDisabled: {
+    color: '#F3A8A5',
+  },
+  countdownBlock: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  countdownLabel: {
+    color: APP_COLORS.textSecondary,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '500',
     textAlign: 'center',
   },
-  resendTextDisabled: {
-    color: APP_COLORS.muted,
+  countdownTimer: {
+    color: APP_COLORS.primary,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
