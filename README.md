@@ -70,3 +70,38 @@ Join our community of developers creating universal apps.
 npx expo prebuild --platform android
 cd android
 .\gradlew.bat assembleRelease
+
+
+npx expo prebuild --platform android
+cd android
+.\gradlew.bat assembleRelease
+
+
+cd d:\projects\t-note-webapp
+npm run android:device:dev
+
+
+
+$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot'
+$env:Path="$env:JAVA_HOME\bin;$env:Path"
+$env:APP_VARIANT='dev'
+
+npx expo prebuild --platform android --clean
+cd android
+.\gradlew.bat assembleRelease
+
+## Android Dev APK
+
+Use this command for a dev APK build:
+
+```powershell
+npm run android:apk:dev
+```
+
+It prepares `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT` and recreates `android/local.properties` automatically before running `assembleRelease`.
+
+Use this command for a prod APK build:
+
+```powershell
+npm run android:apk:prod
+```

@@ -9,13 +9,14 @@ const APP_NAME = IS_PROD ? 'T-Note' : 'T-Note Dev';
 const APP_SLUG = IS_PROD ? 't-note-webapp' : 't-note-webapp-dev';
 const APP_SCHEME = IS_PROD ? 'tnotewebapp' : 'tnotewebapp-dev';
 const APP_BASE_URL = IS_PROD ? 'https://t-note.ru' : 'https://tro.posle.school';
+const APP_BASE_HOST = new URL(APP_BASE_URL).hostname;
 const ANDROID_PACKAGE = IS_PROD ? 'ru.xamloru.tnotewebapp' : 'ru.xamloru.tnotewebapp.dev';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: APP_NAME,
   slug: APP_SLUG,
-  version: '1.0.0',
+  version: '1.0.1',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: APP_SCHEME,
@@ -24,6 +25,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: IS_PROD ? 'ru.xamloru.tnotewebapp' : 'ru.xamloru.tnotewebapp.dev',
+    infoPlist: {
+      WKAppBoundDomains: [APP_BASE_HOST],
+    },
     icon: {
       light: './assets/images/icon-color-1024.png',
       dark: './assets/images/icon-color-1024.png',
@@ -32,7 +36,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: ANDROID_PACKAGE,
-    versionCode: 1,
+    versionCode: 2,
     icon: './assets/images/icon.png',
     adaptiveIcon: {
       backgroundImage: './assets/images/android-icon-background.png',
