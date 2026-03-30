@@ -1,14 +1,7 @@
-import { memo } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { memo, useRef } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AuthFormLayout, useAuthKeyboardScroll } from '@/components/auth/auth-form-layout';
 import { TNoteFullLogo } from '@/components/branding/tnote-full-logo';
 import { APP_COLORS } from '@/constants/app-config';
 
@@ -37,95 +30,95 @@ function RegisterStepComponent({
   onBack,
   canSubmit,
 }: RegisterStepProps) {
+  const firstNameInputRef = useRef<TextInput>(null);
+  const lastNameInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<TextInput>(null);
+  const { scrollViewRef, scrollToInput } = useAuthKeyboardScroll();
+
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.container}>
-        <View style={styles.contentStack}>
-          <View style={styles.heroBlock}>
-            <TNoteFullLogo width={204} height={78} />
+    <AuthFormLayout scrollViewRef={scrollViewRef} contentContainerStyle={styles.container}>
+      <View style={styles.contentStack}>
+        <View style={styles.heroBlock}>
+          <TNoteFullLogo width={204} height={78} />
+        </View>
+
+        <View style={styles.formBlock}>
+          <View style={styles.headingBlock}>
+            <Text style={styles.title}>Завершите регистрацию</Text>
+            <Text style={styles.subtitle}>
+              Пожалуйста, заполните несколько полей, чтобы завершить вход в аккаунт.
+            </Text>
           </View>
 
-          <View style={styles.formBlock}>
-            <View style={styles.headingBlock}>
-              <Text style={styles.title}>Завершите регистрацию</Text>
-              <Text style={styles.subtitle}>
-                Пожалуйста, заполните несколько полей, чтобы завершить вход в аккаунт.
-              </Text>
-            </View>
+          <View style={styles.fieldsBlock}>
+            <TextInput
+              ref={firstNameInputRef}
+              value={values.firstName}
+              onChangeText={(firstName) => onValuesChange({ ...values, firstName })}
+              onFocus={() => scrollToInput(firstNameInputRef)}
+              style={styles.input}
+              placeholder="Имя *"
+              placeholderTextColor={APP_COLORS.textSecondary}
+              autoComplete="name-given"
+              selectionColor={APP_COLORS.primary}
+            />
 
-            <View style={styles.fieldsBlock}>
-              <TextInput
-                value={values.firstName}
-                onChangeText={(firstName) => onValuesChange({ ...values, firstName })}
-                style={styles.input}
-                placeholder="Имя *"
-                placeholderTextColor={APP_COLORS.textSecondary}
-                autoComplete="name-given"
-                selectionColor={APP_COLORS.primary}
-              />
+            <TextInput
+              ref={lastNameInputRef}
+              value={values.lastName}
+              onChangeText={(lastName) => onValuesChange({ ...values, lastName })}
+              onFocus={() => scrollToInput(lastNameInputRef)}
+              style={styles.input}
+              placeholder="Фамилия *"
+              placeholderTextColor={APP_COLORS.textSecondary}
+              autoComplete="name-family"
+              selectionColor={APP_COLORS.primary}
+            />
 
-              <TextInput
-                value={values.lastName}
-                onChangeText={(lastName) => onValuesChange({ ...values, lastName })}
-                style={styles.input}
-                placeholder="Фамилия *"
-                placeholderTextColor={APP_COLORS.textSecondary}
-                autoComplete="name-family"
-                selectionColor={APP_COLORS.primary}
-              />
-
-              <TextInput
-                value={values.email}
-                onChangeText={(email) => onValuesChange({ ...values, email })}
-                style={styles.input}
-                placeholder="Email *"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-                placeholderTextColor={APP_COLORS.textSecondary}
-                selectionColor={APP_COLORS.primary}
-              />
-            </View>
-
-            {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-
-            <Pressable
-              style={[styles.button, !canSubmit && styles.buttonDisabled]}
-              onPress={onSubmit}
-              disabled={!canSubmit || isSubmitting}>
-              <Text style={styles.buttonText}>
-                {isSubmitting ? 'Сохраняем...' : 'Завершить регистрацию'}
-              </Text>
-            </Pressable>
-
-            <Pressable onPress={onBack}>
-              <Text style={styles.backText}>Вернуться к коду</Text>
-            </Pressable>
+            <TextInput
+              ref={emailInputRef}
+              value={values.email}
+              onChangeText={(email) => onValuesChange({ ...values, email })}
+              onFocus={() => scrollToInput(emailInputRef)}
+              style={styles.input}
+              placeholder="Email *"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              placeholderTextColor={APP_COLORS.textSecondary}
+              selectionColor={APP_COLORS.primary}
+            />
           </View>
+
+          {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+
+          <Pressable
+            style={[styles.button, !canSubmit && styles.buttonDisabled]}
+            onPress={onSubmit}
+            disabled={!canSubmit || isSubmitting}>
+            <Text style={styles.buttonText}>
+              {isSubmitting ? 'Сохраняем...' : 'Завершить регистрацию'}
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={onBack}>
+            <Text style={styles.backText}>Вернуться к коду</Text>
+          </Pressable>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </AuthFormLayout>
   );
 }
 
 export const RegisterStep = memo(RegisterStepComponent);
 
 const styles = StyleSheet.create({
-  keyboardContainer: {
-    flex: 1,
-    backgroundColor: APP_COLORS.surface,
-  },
   container: {
-    flex: 1,
-    backgroundColor: APP_COLORS.surface,
     paddingHorizontal: 14,
     paddingTop: 28,
-    paddingBottom: 24,
   },
   contentStack: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     gap: 32,
   },

@@ -22,7 +22,6 @@ import {
   loginWithCode,
   registerUser,
   requestVerificationCode,
-  requiresRegistration,
   verifyCode,
 } from '@/services/auth';
 import {
@@ -148,7 +147,6 @@ export default function IndexScreen() {
   const [phoneInput, setPhoneInput] = useState('');
   const [activePhone, setActivePhone] = useState('');
   const [code, setCode] = useState('');
-  const [temporaryAccessToken, setTemporaryAccessToken] = useState<string | null>(null);
   const [registerValues, setRegisterValues] = useState<RegisterFormValues>({
     firstName: '',
     lastName: '',
@@ -352,7 +350,6 @@ export default function IndexScreen() {
     setStep('phone');
     setCode('');
     setActivePhone('');
-    setTemporaryAccessToken(null);
     setRegisterValues({
       firstName: '',
       lastName: '',
@@ -435,25 +432,17 @@ export default function IndexScreen() {
     setErrorMessage(null);
 
     try {
-      await verifyCode(activePhone, code);
+      const verifyCodeResult = await verifyCode(activePhone, code);
+
+      if (verifyCodeResult.requiresRegistration) {
+        setStep('register');
+        return;
+      }
+
       const loginResponse = await loginWithCode(activePhone, code);
 
       if (!loginResponse.accessToken) {
         throw new Error('Сервер не вернул токен доступа');
-      }
-
-      setTemporaryAccessToken(loginResponse.accessToken);
-
-      let authInfo = null;
-      try {
-        authInfo = await getAuthInfo(loginResponse.accessToken);
-      } catch {
-        authInfo = null;
-      }
-
-      if (requiresRegistration(authInfo)) {
-        setStep('register');
-        return;
       }
 
       reportEvent('auth_login_succeeded', { step: 'code' });
@@ -492,25 +481,14 @@ export default function IndexScreen() {
     try {
       const registerResponse = await registerUser({
         phone: activePhone,
-        username: activePhone,
-        verification_code: code,
-        first_name: firstName,
-        last_name: lastName,
-        surname: '',
+        verificationCode: code,
+        firstName,
+        lastName,
         email,
       });
 
       let accessToken =
         typeof registerResponse.accessToken === 'string' ? registerResponse.accessToken : null;
-
-      if (!accessToken && temporaryAccessToken) {
-        accessToken = temporaryAccessToken;
-      }
-
-      if (!accessToken) {
-        const loginResponse = await loginWithCode(activePhone, code);
-        accessToken = loginResponse.accessToken;
-      }
 
       if (!accessToken) {
         throw new Error('Не удалось завершить регистрацию');
@@ -528,7 +506,7 @@ export default function IndexScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [activePhone, code, finishAuth, registerValues, temporaryAccessToken]);
+  }, [activePhone, code, finishAuth, registerValues]);
 
   const handleLogout = useCallback(() => {
     void clearSession();

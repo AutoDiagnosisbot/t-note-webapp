@@ -1,15 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AuthFormLayout, useAuthKeyboardScroll } from '@/components/auth/auth-form-layout';
 import { TNoteFullLogo } from '@/components/branding/tnote-full-logo';
 import { APP_COLORS } from '@/constants/app-config';
 import { formatPhoneForInput } from '@/utils/phone';
@@ -41,6 +34,7 @@ function CodeStepComponent({
 }: CodeStepProps) {
   const inputRef = useRef<TextInput>(null);
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { scrollViewRef, scrollToInput } = useAuthKeyboardScroll();
   const formattedPhone = useMemo(() => formatPhoneForInput(phone), [phone]);
   const codeChars = useMemo(() => {
     const normalized = code.slice(0, 6);
@@ -59,8 +53,9 @@ function CodeStepComponent({
 
     requestAnimationFrame(() => {
       input.focus();
+      scrollToInput(inputRef);
     });
-  }, []);
+  }, [scrollToInput]);
 
   useEffect(() => {
     focusTimerRef.current = setTimeout(() => {
@@ -79,10 +74,8 @@ function CodeStepComponent({
   const showResendCountdown = !showSubmitButton && !showResendButton;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Pressable style={styles.container} onPress={focusInput}>
+    <AuthFormLayout scrollViewRef={scrollViewRef} contentContainerStyle={styles.container}>
+      <Pressable style={styles.contentPressable} onPress={focusInput}>
         <View style={styles.contentStack}>
           <View style={styles.heroBlock}>
             <TNoteFullLogo width={204} height={78} />
@@ -107,6 +100,7 @@ function CodeStepComponent({
                   ref={inputRef}
                   value={code}
                   onChangeText={onCodeChange}
+                  onFocus={() => scrollToInput(inputRef)}
                   keyboardType="number-pad"
                   textContentType="oneTimeCode"
                   autoComplete="sms-otp"
@@ -181,26 +175,23 @@ function CodeStepComponent({
           </View>
         </View>
       </Pressable>
-    </KeyboardAvoidingView>
+    </AuthFormLayout>
   );
 }
 
 export const CodeStep = memo(CodeStepComponent);
 
 const styles = StyleSheet.create({
-  keyboardContainer: {
-    flex: 1,
-    backgroundColor: APP_COLORS.surface,
-  },
   container: {
-    flex: 1,
-    backgroundColor: APP_COLORS.surface,
     paddingHorizontal: 14,
     paddingTop: 28,
-    paddingBottom: 24,
+  },
+  contentPressable: {
+    flexGrow: 1,
+    width: '100%',
   },
   contentStack: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     gap: 32,
   },

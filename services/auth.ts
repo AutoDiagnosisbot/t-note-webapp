@@ -14,14 +14,22 @@ export type AuthResponse = {
   [key: string]: unknown;
 };
 
+export type RequestVerificationCodeResponse = {
+  status: string;
+  isNewUser?: boolean;
+};
+
+export type VerifyCodeResponse = {
+  requiresRegistration: boolean;
+  userId?: number;
+};
+
 export type RegisterPayload = {
   phone: string;
-  verification_code: string;
-  first_name: string;
-  last_name: string;
-  surname?: string;
+  verificationCode: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  username?: string;
 };
 
 type ApiErrorResponse = {
@@ -67,8 +75,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data;
 }
 
-export async function requestVerificationCode(phone: string): Promise<void> {
-  await request(AUTH_ENDPOINTS.requestCode, {
+export async function requestVerificationCode(phone: string): Promise<RequestVerificationCodeResponse> {
+  return request<RequestVerificationCodeResponse>(AUTH_ENDPOINTS.requestCode, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -77,8 +85,11 @@ export async function requestVerificationCode(phone: string): Promise<void> {
   });
 }
 
-export async function verifyCode(phone: string, verificationCode: string): Promise<void> {
-  await request(AUTH_ENDPOINTS.verifyCode, {
+export async function verifyCode(
+  phone: string,
+  verificationCode: string
+): Promise<VerifyCodeResponse> {
+  return request<VerifyCodeResponse>(AUTH_ENDPOINTS.verifyCode, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -121,12 +132,3 @@ export async function getAuthInfo(accessToken: string): Promise<AuthInfo> {
     },
   });
 }
-
-export function requiresRegistration(authInfo: AuthInfo | null): boolean {
-  if (!authInfo) {
-    return false;
-  }
-
-  return !authInfo.first_name || !authInfo.last_name || !authInfo.email;
-}
-

@@ -142,6 +142,19 @@ Commands:
 - `npm run lint`
 - `npx tsc --noEmit`
 
+Android build environment:
+
+- Use Java 17 for Gradle / Android builds.
+- Verified working JDK path on this machine:
+  - `C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot`
+- Verified with:
+  - `java -version` -> `OpenJDK Runtime Environment Temurin-17.0.18+8`
+- Do not use Java 11 (`C:\Program Files\BellSoft\LibericaJDK-11`) for Android Gradle Plugin tasks; it fails before packaging.
+- If Gradle picks the wrong JDK, set:
+  - PowerShell: `$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot'`
+  - PowerShell: `$env:Path="$env:JAVA_HOME\bin;$env:Path"`
+  - then run from `android/`: `.\gradlew.bat :app:packageRelease`
+
 ## 9. High-impact files to review before edits
 
 If behavior changes unexpectedly, inspect first:

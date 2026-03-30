@@ -1,17 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
-import { memo, useMemo } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { memo, useMemo, useRef } from 'react';
+import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AuthFormLayout, useAuthKeyboardScroll } from '@/components/auth/auth-form-layout';
 import { TNoteFullLogo } from '@/components/branding/tnote-full-logo';
-import { APP_COLORS } from '@/constants/app-config';
+import { APP_BASE_URL, APP_COLORS } from '@/constants/app-config';
 import { formatPhoneForInput } from '@/utils/phone';
 
 type PhoneStepProps = {
@@ -31,6 +23,8 @@ function PhoneStepComponent({
   onSubmit,
   canSubmit,
 }: PhoneStepProps) {
+  const phoneInputRef = useRef<TextInput>(null);
+  const { scrollViewRef, scrollToInput } = useAuthKeyboardScroll();
   const formattedPhone = formatPhoneForInput(phone);
   const localPhone = useMemo(() => {
     if (formattedPhone.startsWith('+7 ')) {
@@ -44,81 +38,91 @@ function PhoneStepComponent({
     return formattedPhone;
   }, [formattedPhone]);
 
+  const openLegalDocument = (documentPath: string): void => {
+    void Linking.openURL(new URL(documentPath, APP_BASE_URL).toString());
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.container}>
-        <View style={styles.contentStack}>
-          <View style={styles.heroBlock}>
-            <TNoteFullLogo width={204} height={78} />
+    <AuthFormLayout scrollViewRef={scrollViewRef} contentContainerStyle={styles.container}>
+      <View style={styles.contentStack}>
+        <View style={styles.heroBlock}>
+          <TNoteFullLogo width={204} height={78} />
 
-            <Text style={styles.heroDescription}>
-              Веди учёт спортсменов, оплат и посещаемости —
-              без таблиц, бумажек и переписок в мессенджерах
-            </Text>
-          </View>
+          <Text style={styles.heroDescription}>
+            Веди учет спортсменов, оплат и посещаемости без таблиц, бумажек и переписок в
+            мессенджерах
+          </Text>
+        </View>
 
-          <View style={styles.formBlock}>
-            <Text style={styles.title}>Введите номер телефона</Text>
+        <View style={styles.formBlock}>
+          <Text style={styles.title}>Введите номер телефона</Text>
 
-            <View style={styles.inputShell}>
-              <View style={styles.flagGroup}>
-                <Text style={styles.flagEmoji}>🇷🇺</Text>
-                <Ionicons name="chevron-down" size={14} color={APP_COLORS.textPrimary} />
-              </View>
-
-              <View style={styles.prefixGroup}>
-                <Text style={styles.countryCode}>+7</Text>
-                <TextInput
-                  value={localPhone}
-                  onChangeText={(value) => onPhoneChange(`+7 ${value}`)}
-                  keyboardType="phone-pad"
-                  autoComplete="tel"
-                  style={styles.input}
-                  placeholder="000 000-00-00"
-                  placeholderTextColor={APP_COLORS.textSecondary}
-                  selectionColor={APP_COLORS.primary}
-                />
-              </View>
+          <View style={styles.inputShell}>
+            <View style={styles.flagGroup}>
+              <Text style={styles.flagEmoji}>🇷🇺</Text>
             </View>
 
-            {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-
-            <Pressable
-              style={[styles.button, !canSubmit && styles.buttonDisabled]}
-              onPress={onSubmit}
-              disabled={!canSubmit || isSubmitting}>
-              <Text style={styles.buttonText}>{isSubmitting ? 'Отправка...' : 'Получить код'}</Text>
-            </Pressable>
-
-            <Text style={styles.caption}>
-              Я соглашаюсь с{' '}
-              <Text style={styles.captionAccent}>политикой обработки персональных данных</Text>
-            </Text>
+            <View style={styles.prefixGroup}>
+              <Text style={styles.countryCode}>+7</Text>
+              <TextInput
+                ref={phoneInputRef}
+                value={localPhone}
+                onChangeText={(value) => onPhoneChange(`+7 ${value}`)}
+                onFocus={() => scrollToInput(phoneInputRef)}
+                keyboardType="phone-pad"
+                autoComplete="tel"
+                style={styles.input}
+                placeholder="000 000-00-00"
+                placeholderTextColor={APP_COLORS.textSecondary}
+                selectionColor={APP_COLORS.primary}
+              />
+            </View>
           </View>
+
+          {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+
+          <Pressable
+            style={[styles.button, !canSubmit && styles.buttonDisabled]}
+            onPress={onSubmit}
+            disabled={!canSubmit || isSubmitting}>
+            <Text style={styles.buttonText}>{isSubmitting ? 'Отправка...' : 'Получить код'}</Text>
+          </Pressable>
+
+          <Text style={styles.caption}>
+            Продолжая, вы соглашаетесь с условиями{' '}
+            <Text
+              style={styles.captionAccent}
+              onPress={() => openLegalDocument('/doc/OfertaTNote.pdf')}>
+              Оферты
+            </Text>{' '}
+            и даете Согласие{' '}
+            <Text
+              style={styles.captionAccent}
+              onPress={() => openLegalDocument('/doc/SoglasiePDTNote.pdf')}>
+              на обработку персональных данных
+            </Text>{' '}
+            и{' '}
+            <Text
+              style={styles.captionAccent}
+              onPress={() => openLegalDocument('/doc/SoglasieReklamaTNote.pdf')}>
+              на получение рассылок
+            </Text>
+          </Text>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </AuthFormLayout>
   );
 }
 
 export const PhoneStep = memo(PhoneStepComponent);
 
 const styles = StyleSheet.create({
-  keyboardContainer: {
-    flex: 1,
-    backgroundColor: APP_COLORS.surface,
-  },
   container: {
-    flex: 1,
-    backgroundColor: APP_COLORS.surface,
     paddingHorizontal: 14,
     paddingTop: 28,
-    paddingBottom: 24,
   },
   contentStack: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     gap: 36,
   },
@@ -162,9 +166,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   flagGroup: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
   },
   flagEmoji: {
     fontSize: 18,

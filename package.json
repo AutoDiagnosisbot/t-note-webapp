@@ -6,9 +6,14 @@
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
+    "android:apk:dev": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk-dev.ps1",
+    "android:apk:prod": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk-prod.ps1",
+    "android:device:dev": "powershell -ExecutionPolicy Bypass -File ./scripts/run-android-device-dev.ps1",
+    "android:logs": "powershell -ExecutionPolicy Bypass -File ./scripts/collect-android-logs.ps1",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@appmetrica/react-native-analytics": "^3.6.0",
@@ -21,12 +26,14 @@
     "expo-application": "~7.0.8",
     "expo-constants": "~18.0.13",
     "expo-device": "~8.0.10",
+    "expo-file-system": "~19.0.21",
     "expo-font": "~14.0.11",
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
     "expo-linking": "~8.0.11",
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
+    "expo-sharing": "~14.0.7",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-symbols": "~1.0.8",
@@ -48,6 +55,7 @@
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "patch-package": "8.0.1",
     "react-native-svg-transformer": "^1.5.3",
     "typescript": "~5.9.2"
   },

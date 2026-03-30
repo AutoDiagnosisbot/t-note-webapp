@@ -9,7 +9,7 @@ export function normalizePhone(input: string): string {
     return `+7${digits.slice(1)}`;
   }
 
-  if (digits.length === 10) {
+  if (digits.length === 10 && !digits.startsWith('7') && !digits.startsWith('8')) {
     return `+7${digits}`;
   }
 
@@ -39,4 +39,3 @@ export function formatPhoneForInput(input: string): string {
 
   return result;
 }
-
