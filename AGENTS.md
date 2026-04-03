@@ -171,6 +171,18 @@ If behavior changes unexpectedly, inspect first:
 - Frequent `/traineronline/auth` redirects from site side can look like UI flicker in WebView.
 - There are encoding artifacts in some Russian strings from prior edits; keep source files UTF-8 and verify visible text on device.
 
+## 10.1 Local Offline Reference
+
+- A local-only note may exist at `TRAINERONLINE_OFFLINE_LOCAL.md`.
+- It is intentionally gitignored.
+- It contains:
+  - absolute repo paths for both `t-note-webapp` and `traineronline`,
+  - the current offline architecture map,
+  - key files on both sides,
+  - recent offline fixes and known behavior,
+  - the preferred Android device-debug flow.
+- Use it as a working memory aid for ongoing offline/app-shell debugging, but do not rely on it being present in every clone.
+
 ## 11. Planned update strategy
 
 - Update tracking is deferred for now and is not implemented in the current runtime.

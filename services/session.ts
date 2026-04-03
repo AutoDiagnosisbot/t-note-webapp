@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { APP_VARIANT } from '@/constants/app-config';
+import type { AuthInfo } from '@/services/auth';
 
 const SESSION_STORAGE_KEY = `tnote-mobile-session-${APP_VARIANT}-v2`;
 const LEGACY_SESSION_STORAGE_KEY = 'tnote-mobile-session-v1';
@@ -9,6 +10,7 @@ const WEBVIEW_AUTH_STORAGE_KEY = 'auth-traineronline-storage';
 export type AppSession = {
   accessToken: string;
   phone: string;
+  authInfo?: AuthInfo | null;
 };
 
 export async function loadSession(): Promise<AppSession | null> {
@@ -38,7 +40,10 @@ export async function clearSession(): Promise<void> {
   await AsyncStorage.multiRemove([SESSION_STORAGE_KEY, LEGACY_SESSION_STORAGE_KEY]);
 }
 
-export function buildWebViewAuthInjection(accessToken: string): string {
+export function buildWebViewAuthInjection(
+  accessToken: string,
+  authInfo: AuthInfo | null = null
+): string {
   return `
     (function () {
       try {
@@ -317,14 +322,37 @@ export function buildWebViewAuthInjection(accessToken: string): string {
           }
         }
 
+        var existingAuthStorageState = {};
+        var existingAuthStorageVersion = 0;
+        try {
+          var existingAuthStorageRaw = localStorage.getItem(AUTH_STORAGE_KEY);
+          if (existingAuthStorageRaw) {
+            var existingAuthStorageParsed = JSON.parse(existingAuthStorageRaw);
+            if (
+              existingAuthStorageParsed &&
+              typeof existingAuthStorageParsed === 'object' &&
+              existingAuthStorageParsed.state &&
+              typeof existingAuthStorageParsed.state === 'object'
+            ) {
+              existingAuthStorageState = existingAuthStorageParsed.state;
+            }
+            if (
+              existingAuthStorageParsed &&
+              typeof existingAuthStorageParsed.version === 'number'
+            ) {
+              existingAuthStorageVersion = existingAuthStorageParsed.version;
+            }
+          }
+        } catch {}
+
         localStorage.setItem(
           AUTH_STORAGE_KEY,
           JSON.stringify({
-            state: {
+            state: Object.assign({}, existingAuthStorageState, {
               accessToken: ${JSON.stringify(accessToken)},
-              authInfo: null
-            },
-            version: 0
+              authInfo: ${JSON.stringify(authInfo ?? null)}
+            }),
+            version: existingAuthStorageVersion
           })
         );
 

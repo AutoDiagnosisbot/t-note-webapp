@@ -3,12 +3,17 @@ import Constants from 'expo-constants';
 type ExtraConfig = {
   appBaseUrl?: string;
   appVariant?: 'dev' | 'prod';
+  webviewDebugEnabled?: boolean;
 };
 
 const extra = (Constants.expoConfig?.extra ?? {}) as ExtraConfig;
 
 export const APP_VARIANT = extra.appVariant === 'prod' ? 'prod' : 'dev';
 export const APP_BASE_URL = extra.appBaseUrl ?? 'https://tro.posle.school';
+export const WEBVIEW_DEBUG_ENABLED =
+  typeof extra.webviewDebugEnabled === 'boolean'
+    ? extra.webviewDebugEnabled
+    : APP_VARIANT === 'dev';
 
 export const APP_COLORS = {
   primary: '#ED534F',
@@ -43,6 +48,12 @@ export type NativeMenuItem = {
 };
 
 export const DEFAULT_LK_PATH = '/traineronline/lk/sportsmens';
+
+export const OFFLINE_SUPPORTED_PATHS = [
+  '/traineronline/lk/sportsmens',
+  '/traineronline/lk/visits',
+  '/traineronline/lk/payments',
+] as const;
 
 export const NATIVE_MENU_ITEMS: NativeMenuItem[] = [
   {

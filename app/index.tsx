@@ -18,6 +18,7 @@ import { RegisterStep } from '@/components/auth/register-step';
 import { AppShell } from '@/components/main/app-shell';
 import { APP_COLORS, DEFAULT_LK_PATH } from '@/constants/app-config';
 import {
+  type ApiRequestError,
   getAuthInfo,
   loginWithCode,
   registerUser,
@@ -91,18 +92,28 @@ function hasUsableStoreUrl(storeUrl: string | null): boolean {
 }
 
 async function bootstrapSessionState(): Promise<AppSession | null> {
-  try {
-    const savedSession = await loadSession();
+  const savedSession = await loadSession();
 
-    if (!savedSession) {
+  if (!savedSession) {
+    return null;
+  }
+
+  try {
+    const authInfo = await getAuthInfo(savedSession.accessToken);
+    const nextSession: AppSession = {
+      ...savedSession,
+      authInfo,
+    };
+    await saveSession(nextSession);
+    return nextSession;
+  } catch (error) {
+    const status = (error as ApiRequestError | undefined)?.status;
+    if (status === 401) {
+      await clearSession();
       return null;
     }
 
-    await getAuthInfo(savedSession.accessToken);
     return savedSession;
-  } catch {
-    await clearSession();
-    return null;
   }
 }
 
@@ -360,10 +371,16 @@ export default function IndexScreen() {
   }, []);
 
   const finishAuth = useCallback(async (nextSession: AppSession) => {
-    await saveSession(nextSession);
-    setSession(nextSession);
+    const authInfo = await getAuthInfo(nextSession.accessToken);
+    const sessionWithAuthInfo: AppSession = {
+      ...nextSession,
+      authInfo,
+    };
+
+    await saveSession(sessionWithAuthInfo);
+    setSession(sessionWithAuthInfo);
     setErrorMessage(null);
-    setAnalyticsUserProfileId(nextSession.phone);
+    setAnalyticsUserProfileId(sessionWithAuthInfo.phone);
   }, []);
 
   const handleRequestCode = useCallback(async () => {
@@ -567,6 +584,7 @@ export default function IndexScreen() {
     content = (
       <AppShell
         accessToken={session.accessToken}
+        authInfo={session.authInfo ?? null}
         initialPath={DEFAULT_LK_PATH}
         onLogout={handleLogout}
       />

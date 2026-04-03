@@ -1,8 +1,15 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { EncodingType } from 'expo-file-system/legacy';
+import * as IntentLauncher from 'expo-intent-launcher';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+
+import {
+  copyFileToContentUri,
+  createDocument as createNativeAndroidDocument,
+  isAndroidDocumentWriterSupported,
+  writeBase64ToContentUri,
+} from './android-document-writer';
 
 export type DownloadSource = 'blob_bridge' | 'native_download' | 'url_bridge';
 
@@ -25,8 +32,12 @@ export type DownloadResult = {
   mimeType: string;
 };
 
-const DOWNLOADS_DIRECTORY_URI_KEY = 'tnote-downloads-directory-uri-v1';
 const DEFAULT_MIME_TYPE = 'application/octet-stream';
+const ANDROID_CREATE_DOCUMENT_ACTION = 'android.intent.action.CREATE_DOCUMENT';
+const ANDROID_OPENABLE_CATEGORY = 'android.intent.category.OPENABLE';
+const ANDROID_EXTRA_TITLE = 'android.intent.extra.TITLE';
+const ANDROID_EXTRA_INITIAL_URI = 'android.provider.extra.INITIAL_URI';
+const ANDROID_DOWNLOAD_CANCELLED_ERROR = 'download_cancelled';
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'application/json': 'json',
   'application/msword': 'doc',
@@ -47,14 +58,14 @@ const MIME_EXTENSION_MAP: Record<string, string> = {
   'text/plain': 'txt',
 };
 
-function normalizeAndroidSafDirectoryUri(directoryUri: string): string {
-  if (!directoryUri || directoryUri.includes('/document/')) {
-    return directoryUri;
+function normalizeAndroidDocumentUri(documentUri: string): string {
+  if (!documentUri || documentUri.includes('/document/')) {
+    return documentUri;
   }
 
-  const treeUriMatch = /^(content:\/\/[^/]+\/tree\/([^/?#]+))$/.exec(directoryUri);
+  const treeUriMatch = /^(content:\/\/[^/]+\/tree\/([^/?#]+))$/.exec(documentUri);
   if (!treeUriMatch) {
-    return directoryUri;
+    return documentUri;
   }
 
   const [, baseUri, documentId] = treeUriMatch;
@@ -139,132 +150,106 @@ function getTargetFileUri(filename: string): string {
   return `${baseDirectory}${Date.now()}-${sanitizeFilename(filename)}`;
 }
 
-async function getPersistedDownloadsDirectoryUri(): Promise<string | null> {
-  try {
-    const persistedUri = await AsyncStorage.getItem(DOWNLOADS_DIRECTORY_URI_KEY);
-    return persistedUri ? normalizeAndroidSafDirectoryUri(persistedUri) : null;
-  } catch {
+function extractAndroidDocumentUri(value?: string | null): string | null {
+  if (!value) {
     return null;
   }
-}
 
-async function setPersistedDownloadsDirectoryUri(directoryUri: string): Promise<void> {
-  try {
-    await AsyncStorage.setItem(
-      DOWNLOADS_DIRECTORY_URI_KEY,
-      normalizeAndroidSafDirectoryUri(directoryUri)
-    );
-  } catch {
-    // Ignore persistence errors and continue with the current session permission.
-  }
-}
-
-async function clearPersistedDownloadsDirectoryUri(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(DOWNLOADS_DIRECTORY_URI_KEY);
-  } catch {
-    // Ignore persistence errors and continue with a fresh permission request.
-  }
-}
-
-function splitFilename(filename: string): { name: string; extension: string | null } {
-  const match = /^(.*?)(?:\.([^.]+))?$/.exec(filename);
-  const name = match?.[1]?.trim() || filename;
-  const extension = match?.[2]?.trim() || null;
-  return {
-    name,
-    extension,
-  };
-}
-
-async function ensureAndroidDownloadsDirectoryUri(): Promise<string> {
-  const persistedUri = await getPersistedDownloadsDirectoryUri();
-  if (persistedUri) {
-    return persistedUri;
+  if (value.startsWith('content://')) {
+    return value;
   }
 
-  const initialDownloadsUri = FileSystem.StorageAccessFramework.getUriForDirectoryInRoot('Download');
-  const permission = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(initialDownloadsUri);
-
-  if (!permission.granted || !permission.directoryUri) {
-    throw new Error('downloads_directory_access_denied');
-  }
-
-  const normalizedDirectoryUri = normalizeAndroidSafDirectoryUri(permission.directoryUri);
-  await setPersistedDownloadsDirectoryUri(normalizedDirectoryUri);
-  return normalizedDirectoryUri;
+  const match = /(content:\/\/[^\s}]+)/.exec(value);
+  return match?.[1] ?? null;
 }
 
-function buildIndexedFilename(filename: string, index: number): string {
-  if (index <= 0) {
-    return filename;
-  }
-
-  const { name, extension } = splitFilename(filename);
-  const suffix = ` (${index + 1})`;
-  return extension ? `${name}${suffix}.${extension}` : `${name}${suffix}`;
+export function isDownloadCancelledError(error: unknown): boolean {
+  return error instanceof Error && error.message === ANDROID_DOWNLOAD_CANCELLED_ERROR;
 }
 
-async function createAndroidDownloadFile(directoryUri: string, filename: string, mimeType: string): Promise<string> {
-  let lastError: unknown;
+async function createAndroidDocument(filename: string, mimeType: string): Promise<string> {
+  const initialDownloadsUri = normalizeAndroidDocumentUri(
+    FileSystem.StorageAccessFramework.getUriForDirectoryInRoot('Download')
+  );
 
-  for (let attemptIndex = 0; attemptIndex < 10; attemptIndex += 1) {
-    const candidateFilename = buildIndexedFilename(filename, attemptIndex);
-
-    try {
-      return await FileSystem.StorageAccessFramework.createFileAsync(directoryUri, candidateFilename, mimeType);
-    } catch (error) {
-      lastError = error;
+  if (isAndroidDocumentWriterSupported()) {
+    const documentUri = await createNativeAndroidDocument(filename, mimeType, initialDownloadsUri);
+    if (!documentUri) {
+      throw new Error(ANDROID_DOWNLOAD_CANCELLED_ERROR);
     }
+
+    return documentUri;
   }
 
-  throw lastError instanceof Error ? lastError : new Error('android_download_file_create_failed');
+  const result = await IntentLauncher.startActivityAsync(ANDROID_CREATE_DOCUMENT_ACTION, {
+    type: mimeType,
+    category: ANDROID_OPENABLE_CATEGORY,
+    extra: {
+      [ANDROID_EXTRA_TITLE]: filename,
+      [ANDROID_EXTRA_INITIAL_URI]: initialDownloadsUri,
+    },
+  });
+
+  if (result.resultCode === IntentLauncher.ResultCode.Canceled) {
+    throw new Error(ANDROID_DOWNLOAD_CANCELLED_ERROR);
+  }
+
+  const documentUri = extractAndroidDocumentUri(result.data);
+  if (!documentUri) {
+    throw new Error('android_document_uri_missing');
+  }
+
+  return documentUri;
 }
 
-async function saveBase64ToAndroidDownloads(
+async function saveBase64ToAndroidDocument(
   base64: string,
   filename: string,
   mimeType: string
 ): Promise<DownloadResult> {
   const resolvedFilename = sanitizeFilename(filename);
-  const persistedDirectoryUri = await getPersistedDownloadsDirectoryUri();
-  const directoryCandidates = persistedDirectoryUri
-    ? [persistedDirectoryUri]
-    : [await ensureAndroidDownloadsDirectoryUri()];
-  let lastError: unknown;
-  let requestedFreshDirectory = false;
+  const documentUri = await createAndroidDocument(resolvedFilename, mimeType);
 
-  for (let candidateIndex = 0; candidateIndex < directoryCandidates.length; candidateIndex += 1) {
-    const directoryUri = directoryCandidates[candidateIndex];
-
-    try {
-      const createdFileUri = await createAndroidDownloadFile(directoryUri, resolvedFilename, mimeType);
-
-      await FileSystem.StorageAccessFramework.writeAsStringAsync(createdFileUri, base64, {
-        encoding: EncodingType.Base64,
-      });
-
-      return {
-        fileUri: createdFileUri,
-        filename: resolvedFilename,
-        mimeType,
-      };
-    } catch (error) {
-      lastError = error;
-
-      if (
-        persistedDirectoryUri &&
-        directoryUri === persistedDirectoryUri &&
-        !requestedFreshDirectory
-      ) {
-        requestedFreshDirectory = true;
-        await clearPersistedDownloadsDirectoryUri();
-        directoryCandidates.push(await ensureAndroidDownloadsDirectoryUri());
-      }
-    }
+  if (isAndroidDocumentWriterSupported()) {
+    await writeBase64ToContentUri(documentUri, base64);
+  } else {
+    await FileSystem.StorageAccessFramework.writeAsStringAsync(documentUri, base64, {
+      encoding: EncodingType.Base64,
+    });
   }
 
-  throw lastError instanceof Error ? lastError : new Error('android_download_write_failed');
+  return {
+    fileUri: documentUri,
+    filename: resolvedFilename,
+    mimeType,
+  };
+}
+
+async function copyFileToAndroidDocument(
+  sourceFileUri: string,
+  filename: string,
+  mimeType: string
+): Promise<DownloadResult> {
+  const resolvedFilename = sanitizeFilename(filename);
+  const documentUri = await createAndroidDocument(resolvedFilename, mimeType);
+
+  if (isAndroidDocumentWriterSupported()) {
+    await copyFileToContentUri(sourceFileUri, documentUri);
+  } else {
+    const base64 = await FileSystem.readAsStringAsync(sourceFileUri, {
+      encoding: EncodingType.Base64,
+    });
+
+    await FileSystem.StorageAccessFramework.writeAsStringAsync(documentUri, base64, {
+      encoding: EncodingType.Base64,
+    });
+  }
+
+  return {
+    fileUri: documentUri,
+    filename: resolvedFilename,
+    mimeType,
+  };
 }
 
 async function shareFileAsync(fileUri: string, mimeType: string): Promise<void> {
@@ -284,7 +269,7 @@ export async function downloadFromBase64(input: DownloadFromBase64Input): Promis
   const mimeType = resolveMimeType(input.mimeType);
   const filename = resolveFilename(input.filename, mimeType);
   if (Platform.OS === 'android') {
-    return await saveBase64ToAndroidDownloads(input.base64, filename, mimeType);
+    return await saveBase64ToAndroidDocument(input.base64, filename, mimeType);
   }
 
   const fileUri = getTargetFileUri(filename);
@@ -333,11 +318,11 @@ export async function downloadFromUrl(input: DownloadFromUrlInput): Promise<Down
   }
 
   if (Platform.OS === 'android') {
-    const base64 = await FileSystem.readAsStringAsync(finalUri, {
-      encoding: EncodingType.Base64,
-    });
-
-    return await saveBase64ToAndroidDownloads(base64, finalFilename, finalMimeType);
+    try {
+      return await copyFileToAndroidDocument(finalUri, finalFilename, finalMimeType);
+    } finally {
+      await FileSystem.deleteAsync(finalUri, { idempotent: true }).catch(() => {});
+    }
   }
 
   await shareFileAsync(finalUri, finalMimeType);

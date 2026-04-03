@@ -4,6 +4,12 @@ type AppVariant = 'dev' | 'prod';
 
 const APP_VARIANT = (process.env.APP_VARIANT === 'prod' ? 'prod' : 'dev') as AppVariant;
 const IS_PROD = APP_VARIANT === 'prod';
+const WEBVIEW_DEBUG_ENABLED =
+  process.env.WEBVIEW_DEBUG_ENABLED === 'true'
+    ? true
+    : process.env.WEBVIEW_DEBUG_ENABLED === 'false'
+      ? false
+      : !IS_PROD;
 
 const APP_NAME = IS_PROD ? 'T-Note' : 'T-Note Dev';
 const APP_SLUG = IS_PROD ? 't-note-webapp' : 't-note-webapp-dev';
@@ -79,6 +85,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     router: {},
     appVariant: APP_VARIANT,
     appBaseUrl: APP_BASE_URL,
+    webviewDebugEnabled: WEBVIEW_DEBUG_ENABLED,
     eas: {
       projectId: 'e938f8b0-3eb1-4772-9e2c-707d479d8ab6',
     },

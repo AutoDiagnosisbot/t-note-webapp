@@ -20,6 +20,15 @@ export type WebViewAuthLogoutMessage = {
   version?: number;
 };
 
+export type WebViewOfflineStatusMessage = {
+  type: 'offline.status';
+  isOffline: boolean;
+  supportedPaths?: string[];
+  availablePaths?: string[];
+  isWarmupReady?: boolean;
+  version?: number;
+};
+
 export type WebViewDebugLogMessage = {
   type: 'debug.log';
   message: string;
@@ -32,6 +41,7 @@ export type WebToNativeBridgeMessage =
   | WebViewBridgeReadyMessage
   | WebViewRouteChangedMessage
   | WebViewAuthLogoutMessage
+  | WebViewOfflineStatusMessage
   | WebViewDebugLogMessage;
 
 export type NativeNavigateMessage = {
@@ -40,11 +50,21 @@ export type NativeNavigateMessage = {
   replace?: boolean;
 };
 
+export type NativeNetworkStatusMessage = {
+  type: 'native.network_status';
+  isOffline: boolean;
+  reachable?: boolean;
+  source?: string;
+};
+
 export type NativeLogoutMessage = {
   type: 'native.logout';
 };
 
-export type NativeToWebBridgeMessage = NativeNavigateMessage | NativeLogoutMessage;
+export type NativeToWebBridgeMessage =
+  | NativeNavigateMessage
+  | NativeNetworkStatusMessage
+  | NativeLogoutMessage;
 
 export function buildDispatchNativeBridgeMessageScript(message: NativeToWebBridgeMessage): string {
   const serializedMessage = JSON.stringify(message);

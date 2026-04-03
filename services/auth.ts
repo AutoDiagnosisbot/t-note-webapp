@@ -37,6 +37,10 @@ type ApiErrorResponse = {
   error?: string;
 };
 
+export type ApiRequestError = Error & {
+  status?: number;
+};
+
 function buildUrl(path: string): string {
   return `${APP_BASE_URL}${path}`;
 }
@@ -64,7 +68,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       // Ignore JSON parsing errors for non-JSON payloads.
     }
 
-    throw new Error(message);
+    const error = new Error(message) as ApiRequestError;
+    error.status = response.status;
+    throw error;
   }
 
   const data = await parseJson<T>(response);
