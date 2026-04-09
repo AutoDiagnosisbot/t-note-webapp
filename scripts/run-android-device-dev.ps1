@@ -118,10 +118,51 @@ function Ensure-AndroidLocalProperties {
   return $localPropertiesPath
 }
 
-function Test-AndroidVariantMatches {
+function Get-ExpoExpectedAndroidValues {
   param(
     [Parameter(Mandatory = $true)]
     [string]$ProjectRoot
+  )
+
+  Push-Location $ProjectRoot
+  try {
+    $rawConfig = (& npx expo config --json)
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Failed to resolve Expo config.'
+    }
+  } finally {
+    Pop-Location
+  }
+
+  $configJson = $rawConfig -join "`n"
+  $config = $configJson | ConvertFrom-Json
+
+  if (
+    -not $config.name -or
+    -not $config.scheme -or
+    -not $config.version -or
+    -not $config.android -or
+    -not $config.android.package -or
+    -not $config.android.versionCode
+  ) {
+    throw 'Expo config is missing required Android version fields.'
+  }
+
+  return [PSCustomObject]@{
+    AppName        = [string]$config.name
+    AndroidPackage = [string]$config.android.package
+    Scheme         = [string]$config.scheme
+    VersionCode    = [string]$config.android.versionCode
+    VersionName    = [string]$config.version
+  }
+}
+
+function Test-AndroidVariantMatches {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ProjectRoot,
+    [Parameter(Mandatory = $true)]
+    [pscustomobject]$ExpectedConfig
   )
 
   $stringsPath = Join-Path $ProjectRoot 'android\app\src\main\res\values\strings.xml'
@@ -136,13 +177,16 @@ function Test-AndroidVariantMatches {
   $buildGradleContent = Get-Content $buildGradlePath -Raw
   $manifestContent = Get-Content $manifestPath -Raw
 
-  $hasExpectedName = $stringsContent.Contains('<string name="app_name">T-Note Dev</string>')
+  $hasExpectedName = $stringsContent.Contains("<string name=""app_name"">$($ExpectedConfig.AppName)</string>")
   $hasExpectedPackage =
-    $buildGradleContent.Contains("namespace 'ru.xamloru.tnotewebapp.dev'") -and
-    $buildGradleContent.Contains("applicationId 'ru.xamloru.tnotewebapp.dev'")
-  $hasExpectedScheme = $manifestContent.Contains('android:scheme="tnotewebapp-dev"')
+    $buildGradleContent.Contains("namespace '$($ExpectedConfig.AndroidPackage)'") -and
+    $buildGradleContent.Contains("applicationId '$($ExpectedConfig.AndroidPackage)'")
+  $hasExpectedScheme = $manifestContent.Contains("android:scheme=""$($ExpectedConfig.Scheme)""")
+  $hasExpectedVersion =
+    $buildGradleContent.Contains("versionCode $($ExpectedConfig.VersionCode)") -and
+    $buildGradleContent.Contains("versionName ""$($ExpectedConfig.VersionName)""")
 
-  return $hasExpectedName -and $hasExpectedPackage -and $hasExpectedScheme
+  return $hasExpectedName -and $hasExpectedPackage -and $hasExpectedScheme -and $hasExpectedVersion
 }
 
 $adbPath = Get-AdbPath
@@ -186,9 +230,10 @@ $env:ANDROID_SDK_ROOT = $androidSdkPath
 
 $env:APP_VARIANT = 'dev'
 $env:ANDROID_SERIAL = $Serial
+$expectedAndroidConfig = Get-ExpoExpectedAndroidValues -ProjectRoot $projectRoot
 
-if (-not (Test-AndroidVariantMatches -ProjectRoot $projectRoot)) {
-  Write-Host 'Android native project does not match APP_VARIANT=dev. Running expo prebuild --platform android --clean'
+if (-not (Test-AndroidVariantMatches -ProjectRoot $projectRoot -ExpectedConfig $expectedAndroidConfig)) {
+  Write-Host 'Android native project does not match resolved Expo config. Running expo prebuild --platform android --clean'
   & npx expo prebuild --platform android --clean
   if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
@@ -205,6 +250,8 @@ Write-Host "Android SDK: $androidSdkPath"
 Write-Host "local.properties: $localPropertiesPath"
 Write-Host "Metro port: $Port"
 Write-Host "APP_VARIANT: $env:APP_VARIANT"
+Write-Host "Expo versionName: $($expectedAndroidConfig.VersionName)"
+Write-Host "Expo versionCode: $($expectedAndroidConfig.VersionCode)"
 
 & $adbPath -s $Serial wait-for-device
 

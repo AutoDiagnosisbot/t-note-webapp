@@ -1,4 +1,4 @@
-package ru.xamloru.tnotewebapp.dev
+package ru.xamloru.tnotewebapp
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

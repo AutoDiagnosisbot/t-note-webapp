@@ -22,7 +22,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: APP_NAME,
   slug: APP_SLUG,
-  version: '1.0.1',
+  version: '1.0.2',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: APP_SCHEME,
@@ -31,6 +31,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: IS_PROD ? 'ru.xamloru.tnotewebapp' : 'ru.xamloru.tnotewebapp.dev',
+    buildNumber: '3',
     infoPlist: {
       WKAppBoundDomains: [APP_BASE_HOST],
     },
@@ -42,7 +43,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: ANDROID_PACKAGE,
-    versionCode: 2,
+    versionCode: 3,
     icon: './assets/images/icon.png',
     adaptiveIcon: {
       backgroundImage: './assets/images/android-icon-background.png',
